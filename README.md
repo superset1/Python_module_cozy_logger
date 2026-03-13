@@ -1,4 +1,4 @@
-# Python module Gitlab Parser
+# Python module Cozy Logger
 
 ## Installation
 
