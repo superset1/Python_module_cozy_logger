@@ -43,7 +43,6 @@ class Logger(object):
 
         if log_file:
             # File output
-            print(2)
             self.LOG_FILE_INFO = f"logs/{log_file}"
             log_dir = os.path.dirname(self.LOG_FILE_INFO)
             if log_dir and not os.path.exists(log_dir):
