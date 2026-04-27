@@ -22,7 +22,7 @@ class Logger(object):
             self.initialized = True
             self.LOG_FILE_INFO = None
 
-    def get_logger(self, *, log_file: str=None, verbose: bool=False):
+    def get_logger(self, *, log_file: str=None, log_level: str="INFO", verbose: bool=False):
         LOG_NAME = __name__
 
         if verbose:
@@ -30,10 +30,13 @@ class Logger(object):
         else:
             LOG_FORMAT = '%(asctime)s %(levelname)s: %(message)s'
 
+        # Convert string to logging constant
+        log_level_int = getattr(logging, log_level.upper(), logging.INFO)
+
         # Custom logger
         logger = logging.getLogger(LOG_NAME)
         log_formatter = logging.Formatter(LOG_FORMAT)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(log_level_int)
 
         logger.handlers.clear()
 
@@ -50,13 +53,14 @@ class Logger(object):
 
             file_handler = logging.FileHandler(self.LOG_FILE_INFO, encoding='utf-8', mode='a')
             file_handler.setFormatter(log_formatter)
-            file_handler.setLevel(logging.INFO)
+            file_handler.setLevel(log_level_int)
             logger.addHandler(file_handler)
 
+            # Duplicate critical logs in console
             console_level = logging.CRITICAL
         else:
-            # Console output if log_file == ''
-            console_level = logging.INFO
+            # Console output only if log_file == ''
+            console_level = log_level_int
             self.LOG_FILE_INFO = ""
 
         # Console config
@@ -65,6 +69,19 @@ class Logger(object):
         stream_handler.setLevel(console_level)
         logger.addHandler(stream_handler)
 
+        # Change log level
+        def log_level(log_level: str):
+            log_level_int = getattr(logging, log_level.upper(), logging.INFO)
+            logger.setLevel(log_level_int)
+            if log_file:
+                # File output
+                file_handler.setLevel(log_level_int)
+            else:
+                # Console output if log_file == ''
+                stream_handler.setLevel(log_level_int)
+
+        logger.log_level = log_level
+        
         self.__class__._current_logger = logger
 
         return logger
