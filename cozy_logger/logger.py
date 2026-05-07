@@ -2,6 +2,7 @@ import logging
 import datetime
 import inspect
 import os
+from zoneinfo import ZoneInfo
 
 class Logger(object):
     '''Custom Logger - Singleton'''
@@ -18,11 +19,19 @@ class Logger(object):
         if not hasattr(self, 'initialized'):
             self.frame = inspect.currentframe().f_back
             self.filename = self.frame.f_code.co_filename
-            self.log_file_default = f"{os.path.basename(self.filename).split('.')[0]}_{datetime.datetime.now().strftime('%Y_%m_%dT%H_%M_%S')}.log"
             self.initialized = True
             self.LOG_FILE_INFO = None
 
-    def get_logger(self, *, log_file: str=None, log_level: str="INFO", verbose: bool=False):
+    def _get_log_filename(self, timezone=None):
+        if timezone:
+            tz = ZoneInfo(timezone)
+            now = datetime.datetime.now(tz)
+        else:
+            now = datetime.datetime.now().astimezone()
+
+        return f"{os.path.basename(self.filename).split('.')[0]}_{now.strftime('%Y_%m_%dT%H_%M_%S')}.log"
+
+    def get_logger(self, *, log_file: str=None, log_level: str="INFO", timezone: str=None, verbose: bool=False):
         LOG_NAME = __name__
 
         if verbose:
@@ -33,16 +42,28 @@ class Logger(object):
         # Convert string to logging constant
         log_level_int = getattr(logging, log_level.upper(), logging.INFO)
 
+        # Custom formatter with timezone support
+        class TimezoneFormatter(logging.Formatter):
+            def __init__(self, fmt, timezone=None):
+                super().__init__(fmt)
+                self.tz = ZoneInfo(timezone) if timezone else None
+
+            def formatTime(self, record, datefmt=None):
+                dt = datetime.datetime.now(self.tz) if self.tz else datetime.datetime.now().astimezone()
+                if datefmt:
+                    return dt.strftime(datefmt)
+                return dt.isoformat()
+
         # Custom logger
         logger = logging.getLogger(LOG_NAME)
-        log_formatter = logging.Formatter(LOG_FORMAT)
+        log_formatter = TimezoneFormatter(LOG_FORMAT, timezone)
         logger.setLevel(log_level_int)
 
         logger.handlers.clear()
 
         # Default file name only if log_file is None (not '')
         if log_file is None:
-            log_file = self.log_file_default
+            log_file = self._get_log_filename(timezone)
 
         if log_file:
             # File output
@@ -81,7 +102,7 @@ class Logger(object):
                 stream_handler.setLevel(log_level_int)
 
         logger.log_level = log_level
-        
+
         self.__class__._current_logger = logger
 
         return logger
